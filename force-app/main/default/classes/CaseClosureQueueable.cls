@@ -33,7 +33,7 @@ public class CaseClosureQueueable implements Queueable, Database.AllowsCallouts 
     public void execute(QueueableContext context) {
 
         //Generates the request body leveraging the custom metadata.
-        String reqBody = JSON.serialize(createAPIRequestBodyFromCase(this.ticket, fieldMap));
+        String reqBody = createAPIRequestBodyFromCase(this.ticket, fieldMap);
         //SOQL to retrieve the API_Callout__c record which was queued as part of the invocable function.
         API_Callout__c currentAPICallout = new APICalloutSelector().getAPICalloutByJobId(context.getJobId())[0];
                 
@@ -86,29 +86,15 @@ public class CaseClosureQueueable implements Queueable, Database.AllowsCallouts 
      * This can be potentially enhanced to a utility method which can be used to generate API request body
      * for different objects leveraging field mapping custom metadata.
 	 */
-    private static APICalloutBody createAPIRequestBodyFromCase(Case ticket, Map<String,String> fieldMap){
-        APICalloutBody calloutBody = new APICalloutBody();
-        //describes Case sobject to create the call body
+    private string createAPIRequestBodyFromCase(Case ticket, Map<String,String> fieldMap){
+        String calloutBody = '';
         Map<String, Schema.SObjectField> fields = Case.getSobjectType().getDescribe().fields.getMap();
         for(String key : fields.keyset()){
             if(fieldMap.containsKey(key)){
-                Object obj = ticket.get(key); 
-                if(obj != null){
-                    calloutBody.values.put(fieldMap.get(key), obj);
-                }                 
+                calloutBody += EncodingUtil.urlEncode(fieldMap.get(key), 'UTF-8') + '=' + EncodingUtil.urlEncode((String)ticket.get(key), 'UTF-8') + '&';                                
             }                                   
         }
-        return calloutBody;
-    }
-
-    /*
-     * Apex type (wrapper) which is used to constitute the Http Request.
-	 */
-    public class APICalloutBody{
-        public Map<String,Object> values{get;set;}
-        public APICalloutBody(){
-            this.values = new Map<String,Object>();
-        }
+        return calloutBody.removeEnd('&');   
     }
 
     /*
